@@ -3,12 +3,12 @@ const ORDERS_API_URL = '/api/orders';
 
 // Dummy data fallback for demonstration if API fails or is not setup
 const dummyProducts = [
-    { id: 1, name: "Premium Wireless Headphones", description: "High-quality noise-canceling wireless headphones with 30-hour battery life.", price: 299.99, stock: 15, category: "Electronics", scent: "Ocean Breeze", image: "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=500&q=80", images: ["https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=500&q=80", "https://images.unsplash.com/photo-1484704849700-f032a568e944?w=500&q=80", "https://images.unsplash.com/photo-1583394838336-acd977736f90?w=500&q=80"] },
-    { id: 2, name: "Minimalist Smartwatch", description: "Sleek smartwatch with health tracking, notifications, and water resistance.", price: 199.50, stock: 20, category: "Electronics", scent: "Citrus Punch", image: "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=500&q=80" },
-    { id: 3, name: "Classic Cotton T-Shirt", description: "Ultra-soft 100% organic cotton t-shirt. Perfect for everyday wear.", price: 29.99, stock: 50, category: "Clothing", scent: "Fresh Linen", image: "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=500&q=80" },
-    { id: 4, name: "Leather Crossbody Bag", description: "Genuine leather bag with multiple compartments and adjustable strap.", price: 89.00, stock: 10, category: "Accessories", scent: "Leather & Sandalwood", image: "https://images.unsplash.com/photo-1548036328-c9fa89d128fa?w=500&q=80" },
-    { id: 5, name: "Polarized Sunglasses", description: "UV400 polarized sunglasses with lightweight frame.", price: 45.00, stock: 30, category: "Accessories", scent: "Cool Mint", image: "https://images.unsplash.com/photo-1511499767150-a48a237f0083?w=500&q=80" },
-    { id: 6, name: "Denim Jacket", description: "Vintage wash denim jacket. A timeless wardrobe staple.", price: 75.00, stock: 25, category: "Clothing", scent: "Wild Musk", image: "https://images.unsplash.com/photo-1576871337632-b9aef4c17ab9?w=500&q=80" }
+    { id: 1, name: "Premium Wireless Headphones", description: "High-quality noise-canceling wireless headphones with 30-hour battery life.", price: 299.99, weight: 350, stock: 15, category: "Electronics", scent: "Ocean Breeze", image: "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=500&q=80", images: ["https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=500&q=80", "https://images.unsplash.com/photo-1484704849700-f032a568e944?w=500&q=80", "https://images.unsplash.com/photo-1583394838336-acd977736f90?w=500&q=80"] },
+    { id: 2, name: "Minimalist Smartwatch", description: "Sleek smartwatch with health tracking, notifications, and water resistance.", price: 199.50, weight: 150, stock: 20, category: "Electronics", scent: "Citrus Punch", image: "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=500&q=80" },
+    { id: 3, name: "Classic Cotton T-Shirt", description: "Ultra-soft 100% organic cotton t-shirt. Perfect for everyday wear.", price: 29.99, weight: 200, stock: 50, category: "Clothing", scent: "Fresh Linen", image: "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=500&q=80" },
+    { id: 4, name: "Leather Crossbody Bag", description: "Genuine leather bag with multiple compartments and adjustable strap.", price: 89.00, weight: 600, stock: 10, category: "Accessories", scent: "Leather & Sandalwood", image: "https://images.unsplash.com/photo-1548036328-c9fa89d128fa?w=500&q=80" },
+    { id: 5, name: "Polarized Sunglasses", description: "UV400 polarized sunglasses with lightweight frame.", price: 45.00, weight: 100, stock: 30, category: "Accessories", scent: "Cool Mint", image: "https://images.unsplash.com/photo-1511499767150-a48a237f0083?w=500&q=80" },
+    { id: 6, name: "Denim Jacket", description: "Vintage wash denim jacket. A timeless wardrobe staple.", price: 75.00, weight: 800, stock: 25, category: "Clothing", scent: "Wild Musk", image: "https://images.unsplash.com/photo-1576871337632-b9aef4c17ab9?w=500&q=80" }
 ];
 
 // --- State ---
@@ -64,6 +64,7 @@ async function fetchProducts() {
                 name: item.Name || 'Unknown Product',
                 brand: item.Brand || '',
                 price: parseFloat(String(item.Price).replace(/[^0-9.]/g, '')) || 0,
+                weight: parseFloat(item.Weight) || 500, // Default 500g if missing
                 image: imagesArray[0],
                 images: imagesArray,
                 category: item.Type || 'Uncategorized',
@@ -183,11 +184,31 @@ function setupEventListeners() {
     // Checkout Modal Open
     document.getElementById('checkoutBtn').addEventListener('click', populateCheckoutSummary);
 
+    // Recalculate on Payment Method Change
+    document.getElementById('cPayment').addEventListener('change', populateCheckoutSummary);
+
     // Checkout Form Submit
     checkoutForm.addEventListener('submit', handleCheckout);
 
-    // Pincode blur → fetch post offices
-    document.getElementById('cPincode').addEventListener('blur', fetchPostOffices);
+    // Pincode blur → fetch post offices → then recalculate
+    document.getElementById('cPincode').addEventListener('blur', async () => {
+        await fetchPostOffices();
+        populateCheckoutSummary();
+    });
+
+    // Pincode input → handle clearing
+    document.getElementById('cPincode').addEventListener('input', (e) => {
+        if (e.target.value.trim().length === 0) {
+            // Clear city/state/post office if pincode is cleared
+            document.getElementById('cCity').value = '';
+            document.getElementById('cState').value = '';
+            document.getElementById('cPostOffice').innerHTML = '<option value="">-- Enter pincode to load --</option>';
+            populateCheckoutSummary();
+        } else if (e.target.value.trim().length === 6) {
+            // Optional: Auto-trigger lookup when 6 digits are reached
+            fetchPostOffices().then(populateCheckoutSummary);
+        }
+    });
 }
 
 // --- Filter and Sort Logic ---
@@ -412,22 +433,137 @@ function updateCartUI() {
     cartTotalText.textContent = '₹' + total.toFixed(2);
 }
 
+// --- Shipping & COD Calculation Logic ---
+function calculateShipping(totalWeightG, state, pincode) {
+    if (!pincode || pincode.trim().length < 6) return 0;
+
+    let zone = 'national';
+
+    // Simple zone logic
+    const tamilNaduKeywords = ['tamil nadu', 'tamilnadu', 'tn'];
+    const isStateTN = tamilNaduKeywords.some(k => (state || '').toLowerCase().includes(k));
+
+    // Local: Chennai (Pincodes starting 600-608)
+    if (pincode.startsWith('600') || pincode.startsWith('601') || pincode.startsWith('602') || pincode.startsWith('603')) {
+        zone = 'local';
+    } else if (isStateTN) {
+        zone = 'state';
+    }
+
+    const weightKg = totalWeightG / 1000;
+    let cost = 0;
+
+    // Rates based on user provided table
+    if (weightKg <= 0.5) {
+        cost = (zone === 'local') ? 36 : (zone === 'state') ? 49 : 59;
+    } else if (weightKg <= 1.0) {
+        cost = (zone === 'local') ? 48 : (zone === 'state') ? 67 : 77;
+    } else if (weightKg <= 1.5) {
+        cost = (zone === 'local') ? 60 : (zone === 'state') ? 87 : 97;
+    } else if (weightKg <= 2.0) {
+        cost = (zone === 'local') ? 70 : (zone === 'state') ? 105 : 115;
+    } else if (weightKg <= 2.5) {
+        cost = (zone === 'local') ? 82 : (zone === 'state') ? 123 : 133;
+    } else if (weightKg <= 3.0) {
+        cost = (zone === 'local') ? 94 : (zone === 'state') ? 143 : 153;
+    } else if (weightKg <= 3.5) {
+        cost = (zone === 'local') ? 106 : (zone === 'state') ? 161 : 171;
+    } else if (weightKg <= 4.0) {
+        cost = (zone === 'local') ? 118 : (zone === 'state') ? 181 : 191;
+    } else if (weightKg <= 4.5) {
+        cost = (zone === 'local') ? 130 : (zone === 'state') ? 199 : 210;
+    } else if (weightKg <= 5.0) {
+        cost = (zone === 'local') ? 142 : (zone === 'state') ? 219 : 230;
+    } else {
+        // Pattern for > 5kg: approx +12 Local, +20 State/National per 500g
+        const extraWeights = Math.ceil((totalWeightG - 5000) / 500);
+        const baseCost = (zone === 'local') ? 142 : (zone === 'state') ? 219 : 230;
+        const increment = (zone === 'local') ? 12 : 20;
+        cost = baseCost + (extraWeights * increment);
+    }
+
+    return cost;
+}
+
 // --- Checkout Logic ---
 function populateCheckoutSummary() {
     checkoutOrderSummary.innerHTML = '';
-    let total = 0;
+    let subtotal = 0;
+    let totalWeight = 0;
 
     cart.forEach(item => {
-        total += item.price * item.quantity;
+        const itemTotal = Number(item.price || 0) * item.quantity;
+        subtotal += itemTotal;
+        totalWeight += (Number(item.weight || 0) * item.quantity);
+
         checkoutOrderSummary.innerHTML += `
             <div class="d-flex justify-content-between mb-2 pb-2 border-bottom">
-                <span class="text-truncate pe-2">${item.quantity}x ${item.name}</span>
-                <span class="fw-semibold">₹${(Number(item.price || 0) * item.quantity).toFixed(2)}</span>
+                <div class="pe-2">
+                    <span class="d-block text-truncate" style="max-width: 180px;">${item.quantity}x ${item.name}</span>
+                </div>
+                <span class="fw-semibold">₹${itemTotal.toFixed(2)}</span>
             </div>
         `;
     });
 
-    checkoutGrandTotal.textContent = '₹' + total.toFixed(2);
+    const pincode = document.getElementById('cPincode').value;
+    const state = document.getElementById('cState').value;
+    const paymentMethod = document.getElementById('cPayment').value;
+    const paymentWrapper = document.getElementById('paymentMethodWrapper');
+
+    // Logic to show/hide payment method
+    const isLocationReady = pincode && pincode.trim().length === 6 && state;
+    if (isLocationReady) {
+        paymentWrapper.style.display = 'block';
+    } else {
+        paymentWrapper.style.display = 'none';
+        // Reset payment method selection if location is not ready
+        document.getElementById('cPayment').value = '';
+    }
+
+    const shippingCharge = calculateShipping(totalWeight, state, pincode);
+    const isCOD = paymentMethod === 'Cash on Delivery';
+    const codCharge = isCOD ? (subtotal + shippingCharge) * 0.016 : 0;
+    const grandTotal = subtotal + shippingCharge + codCharge;
+
+    // Add calculations to summary
+    let summaryHtml = `
+        <div class="mt-3 pt-2">
+            <div class="d-flex justify-content-between small mb-1">
+                <span class="text-muted">Subtotal:</span>
+                <span>₹${subtotal.toFixed(2)}</span>
+            </div>
+    `;
+
+    // Only show shipping if location is ready and charge is calculated
+    if (isLocationReady && shippingCharge > 0) {
+        summaryHtml += `
+            <div class="d-flex justify-content-between small mb-1 animate-fade-in">
+                <span class="text-muted">Shipping Charges:</span>
+                <span>₹${shippingCharge.toFixed(2)}</span>
+            </div>
+        `;
+    }
+
+    if (isCOD && isLocationReady) {
+        summaryHtml += `
+            <div class="d-flex justify-content-between small mb-1 text-info animate-fade-in">
+                <span>COD Charges:</span>
+                <span>₹${codCharge.toFixed(2)}</span>
+            </div>
+        `;
+    }
+
+    summaryHtml += `</div>`;
+    checkoutOrderSummary.innerHTML += summaryHtml;
+
+    checkoutGrandTotal.textContent = '₹' + grandTotal.toFixed(2);
+
+    // Store calculated values for handleCheckout
+    checkoutGrandTotal.dataset.subtotal = subtotal;
+    checkoutGrandTotal.dataset.shipping = shippingCharge;
+    checkoutGrandTotal.dataset.cod = codCharge;
+    checkoutGrandTotal.dataset.weight = totalWeight;
 }
 
 // --- Pincode → Post Office Lookup ---
@@ -508,7 +644,11 @@ async function handleCheckout(e) {
         post_office: document.getElementById('cPostOffice').value || '',
         payment_method: document.getElementById('cPayment').value,
         items: cart.map(i => `${i.name} x${i.quantity}`).join(' | '),
-        total_amount: cart.reduce((sum, item) => sum + (Number(item.price || 0) * item.quantity), 0).toFixed(2),
+        subtotal: checkoutGrandTotal.dataset.subtotal,
+        shipping_charge: checkoutGrandTotal.dataset.shipping,
+        cod_charge: checkoutGrandTotal.dataset.cod,
+        total_weight: checkoutGrandTotal.dataset.weight,
+        total_amount: checkoutGrandTotal.textContent.replace('₹', ''),
         status: 'Pending'
     };
 

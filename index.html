@@ -267,10 +267,11 @@
                                         <small id="postOfficeError" class="text-danger d-none">Could not fetch post
                                             offices. Please check the pincode.</small>
                                     </div>
-                                    <div class="col-12">
+                                    <div class="col-12" id="paymentMethodWrapper" style="display: none;">
                                         <label for="cPayment" class="form-label text-muted small fw-semibold">Payment
                                             Method</label>
                                         <select class="form-select rounded-3 bg-light" id="cPayment" required>
+                                            <option value="">-- Select Payment Method --</option>
                                             <option value="Cash on Delivery">Cash on Delivery (COD)</option>
                                             <option value="Online Payment">Online Payment (Card/UPI)</option>
                                         </select>
