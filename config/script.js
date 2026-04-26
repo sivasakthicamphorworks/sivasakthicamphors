@@ -685,6 +685,7 @@ async function handleCheckout(e) {
         checkoutModal.hide();
         cartOffcanvas.hide();
         checkoutForm.reset();
+        document.getElementById('successOrderId').textContent = orderData.order_id;
         successModal.show();
 
     } catch (error) {

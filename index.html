@@ -310,7 +310,7 @@
     <div class="modal fade" id="productModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered modal-lg">
             <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
-                <div class="modal-header border-0 position-absolute top-0 end-0 z-1 p-3">
+                <div class="modal-header border-0 position-absolute top-0 end-0 p-3" style="z-index: 10;">
                     <button type="button" class="btn-close bg-white rounded-circle p-2 shadow-sm"
                         data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
@@ -388,7 +388,11 @@
                 <div class="modal-body">
                     <i class="bi bi-check-circle-fill text-success" style="font-size: 4rem;"></i>
                     <h4 class="fw-bold mt-3">Order Placed!</h4>
-                    <p class="text-muted mb-0">Your order has been successfully placed. We will contact you shortly.</p>
+                    <p class="text-muted mb-2">Your order has been successfully placed. We will contact you shortly.</p>
+                    <div class="bg-light rounded-3 p-2 mb-3">
+                        <span class="text-muted small d-block">Order ID</span>
+                        <strong class="text-primary" id="successOrderId">ORD-000000</strong>
+                    </div>
                 </div>
                 <div class="modal-footer border-0 justify-content-center mt-2">
                     <button type="button" class="btn btn-primary rounded-pill px-4" data-bs-dismiss="modal">Continue
