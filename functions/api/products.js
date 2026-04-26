@@ -1,13 +1,21 @@
 export async function onRequest(context) {
   const { env } = context;
-  // Use environment variable for security, with a fallback for initial testing
-  const API_ID = env.PRODUCTS_API_ID || 'n5nagleb2znaw';
-  const url = `https://sheetdb.io/api/v1/${API_ID}`;
+  // Use environment variable for the Apps Script Web App URL
+  const SCRIPT_URL = env.APPS_SCRIPT_URL;
+
+  if (!SCRIPT_URL) {
+    return new Response(JSON.stringify({ error: 'APPS_SCRIPT_URL not configured' }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+
+  const url = `${SCRIPT_URL}?action=products`;
 
   try {
     const response = await fetch(url);
     if (!response.ok) {
-      return new Response(JSON.stringify({ error: 'SheetDB API error' }), {
+      return new Response(JSON.stringify({ error: 'Google Apps Script error' }), {
         status: response.status,
         headers: { 'Content-Type': 'application/json' },
       });
@@ -16,7 +24,7 @@ export async function onRequest(context) {
     return new Response(JSON.stringify(data), {
       headers: {
         'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*' // Allow for local testing if needed
+        'Access-Control-Allow-Origin': '*'
       },
     });
   } catch (error) {
@@ -26,3 +34,4 @@ export async function onRequest(context) {
     });
   }
 }
+

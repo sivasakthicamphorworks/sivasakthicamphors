@@ -54,7 +54,7 @@ async function fetchProducts() {
         if (!response.ok) throw new Error('API fetch failed');
         const data = await response.json();
 
-        // Map data if necessary (assuming SheetDB returns array of objects)
+        // Map data if necessary (expecting array of objects from Apps Script)
         // Ensure price and stock are numbers
         products = data.map(item => {
             const rawImages = item['Images'] || item['Image URL'] || 'https://via.placeholder.com/500';
@@ -653,7 +653,7 @@ async function handleCheckout(e) {
     };
 
     try {
-        // Submit to SheetDB
+        // Submit to Google Apps Script (via Cloudflare Proxy)
         // If URL is the placeholder, we simulate a delay instead of throwing error
         if (ORDERS_API_URL.includes('YOUR_ORDERS_API_ID')) {
             console.log("Mocking API Request with data:", orderData);
@@ -670,8 +670,8 @@ async function handleCheckout(e) {
 
             if (!response.ok) {
                 const errText = await response.text();
-                console.error('SheetDB Error Response:', response.status, errText);
-                throw new Error(`SheetDB returned ${response.status}: ${errText}`);
+                console.error('API Error Response:', response.status, errText);
+                throw new Error(`API returned ${response.status}: ${errText}`);
             }
 
             const result = await response.json();
