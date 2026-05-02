@@ -24,6 +24,7 @@ body {
 /* Custom Scrollbar */
 ::-webkit-scrollbar {
     width: 8px;
+    height: 8px;
 }
 
 ::-webkit-scrollbar-track {
@@ -37,6 +38,17 @@ body {
 
 ::-webkit-scrollbar-thumb:hover {
     background: #94a3b8;
+}
+
+/* Hide scrollbar for horizontal carousels on mobile only */
+@media (max-width: 991.98px) {
+    .hide-scrollbar::-webkit-scrollbar {
+        display: none;
+    }
+    .hide-scrollbar {
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+    }
 }
 
 /* Typography & Utilities */
@@ -209,6 +221,13 @@ h6 {
     flex-direction: column;
 }
 
+.category-card-wrapper {
+    width: 280px;
+    max-width: 80vw;
+    scroll-snap-align: start;
+    flex-shrink: 0;
+}
+
 .product-card:hover {
     transform: translateY(-8px);
     box-shadow: 0 15px 30px rgba(0, 0, 0, 0.08) !important;
@@ -216,7 +235,7 @@ h6 {
 }
 
 .product-img-wrapper {
-    height: 280px;
+    height: 250px;
     padding: 1rem;
     background-color: var(--bg-light);
     display: flex;
@@ -224,6 +243,38 @@ h6 {
     justify-content: center;
     overflow: hidden;
     position: relative;
+}
+
+.scroll-btn {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 40px;
+    height: 40px;
+    background-color: white;
+    border: 1px solid var(--border-color);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 10;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    transition: all var(--transition-fast);
+}
+
+.scroll-btn:hover {
+    background-color: var(--primary-color);
+    color: white;
+    border-color: var(--primary-color);
+}
+
+.scroll-btn-left {
+    left: -20px;
+}
+
+.scroll-btn-right {
+    right: -20px;
 }
 
 .product-img {
@@ -389,6 +440,44 @@ footer a:hover {
 
     .product-img-wrapper:hover .add-to-cart-btn {
         transform: none;
+    }
+}
+
+@media (max-width: 575.98px) {
+    .category-card-wrapper {
+        width: 160px; /* Reduced from 200px to fit 2+ cards horizontally */
+    }
+    
+    .product-img-wrapper {
+        height: 140px; /* Smaller image */
+        padding: 0.5rem;
+    }
+    
+    .product-title {
+        font-size: 0.9rem;
+        margin-bottom: 0.25rem;
+    }
+    
+    .product-price {
+        font-size: 1rem;
+    }
+
+    .product-desc {
+        font-size: 0.75rem;
+        margin-bottom: 0.5rem;
+    }
+    
+    .card-body {
+        padding: 0.75rem !important;
+    }
+
+    .add-to-cart-btn {
+        padding: 0.35rem 0.5rem;
+        font-size: 0.8rem;
+    }
+    
+    .scroll-btn {
+        display: none !important; /* Hide scroll buttons on mobile, swipe is better */
     }
 }
 

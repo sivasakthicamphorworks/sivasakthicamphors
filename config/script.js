@@ -49,36 +49,72 @@ document.addEventListener('DOMContentLoaded', () => {
 // --- Fetch Products ---
 async function fetchProducts() {
     try {
-        // Attempt to fetch from API
-        const response = await fetch(PRODUCTS_API_URL);
-        if (!response.ok) throw new Error('API fetch failed');
-        const data = await response.json();
+        // 1. Try to load from local storage first (instant load)
+        const CACHE_KEY = 'sscw_products_cache';
+        const CACHE_TIME_KEY = 'sscw_products_cache_time';
 
-        // Map data if necessary (expecting array of objects from Apps Script)
-        // Ensure price and stock are numbers
-        products = data.map(item => {
-            const rawImages = item['Images'] || item['Image URL'] || 'https://via.placeholder.com/500';
-            const imagesArray = rawImages.split(',').map(url => url.trim()).filter(url => url);
-            return {
-                id: item.ID || Date.now() + Math.random(),
-                name: item.Name || 'Unknown Product',
-                brand: item.Brand || '',
-                price: parseFloat(String(item.Price).replace(/[^0-9.]/g, '')) || 0,
-                weight: parseFloat(item.Weight) || 500, // Default 500g if missing
-                image: imagesArray[0],
-                images: imagesArray,
-                category: item.Type || 'Uncategorized',
-                scent: item.Scent || '',
-                description: item.Description || '',
-                stock: parseInt(item.Stock, 10) || 0,
-                status: item.Status || ''
-            };
-        });
+        const cachedProductsStr = localStorage.getItem(CACHE_KEY);
+        const cacheTimeStr = localStorage.getItem(CACHE_TIME_KEY);
 
+        if (cachedProductsStr) {
+            products = JSON.parse(cachedProductsStr);
+            loadingSpinner.classList.add('d-none');
+            populateCategories();
+            renderProducts(products);
+        } else {
+            // Only show spinner if we have nothing to show yet
+            loadingSpinner.classList.remove('d-none');
+        }
+
+        // 2. Check if cache is older than 5 minutes
+        const now = new Date().getTime();
+        const isCacheOld = !cacheTimeStr || (now - parseInt(cacheTimeStr)) > (5 * 60 * 1000);
+
+        // 3. Fetch fresh data if no cache or cache is old
+        if (!cachedProductsStr || isCacheOld) {
+            // Attempt to fetch from API
+            const response = await fetch(PRODUCTS_API_URL);
+            if (!response.ok) throw new Error('API fetch failed');
+            const data = await response.json();
+
+            // Map data
+            const fetchedProducts = data.map(item => {
+                const rawImages = item['Images'] || item['Image URL'] || 'https://via.placeholder.com/500';
+                const imagesArray = rawImages.split(',').map(url => url.trim()).filter(url => url);
+                return {
+                    id: item.ID || Date.now() + Math.random(),
+                    name: item.Name || 'Unknown Product',
+                    brand: item.Brand || '',
+                    price: parseFloat(String(item.Price).replace(/[^0-9.]/g, '')) || 0,
+                    weight: parseFloat(item.Weight) || 500,
+                    image: imagesArray[0],
+                    images: imagesArray,
+                    category: item.Type || 'Uncategorized',
+                    scent: item.Scent || '',
+                    description: item.Description || '',
+                    stock: parseInt(item.Stock, 10) || 0,
+                    status: item.Status || ''
+                };
+            });
+
+            // Re-render and update cache if data has changed or if it's the first time
+            const newProductsStr = JSON.stringify(fetchedProducts);
+            if (!cachedProductsStr || newProductsStr !== cachedProductsStr) {
+                products = fetchedProducts;
+                localStorage.setItem(CACHE_KEY, newProductsStr);
+                localStorage.setItem(CACHE_TIME_KEY, now.toString());
+
+                loadingSpinner.classList.add('d-none');
+                populateCategories();
+                renderProducts(products);
+            } else {
+                // Just update the cache timestamp if data is exactly the same
+                localStorage.setItem(CACHE_TIME_KEY, now.toString());
+            }
+        }
     } catch (error) {
         console.warn("Using dummy data. API error:", error);
         products = [...dummyProducts];
-    } finally {
         loadingSpinner.classList.add('d-none');
         populateCategories();
         renderProducts(products);
@@ -95,52 +131,198 @@ function populateCategories() {
     categoryFilter.innerHTML = optionsHtml;
 }
 
+// --- State ---
+let currentViewMode = 'grouped'; // 'grouped' or 'grid'
+
 // --- Render Products ---
 function renderProducts(productsToRender) {
     productsGrid.innerHTML = '';
+    
+    // Update container classes based on mode
+    if (currentViewMode === 'grid') {
+        productsGrid.className = 'row g-4';
+    } else {
+        productsGrid.className = 'd-flex flex-column gap-5';
+    }
 
     if (productsToRender.length === 0) {
         productsGrid.innerHTML = `
             <div class="col-12 text-center py-5">
                 <i class="bi bi-search fs-1 text-muted mb-3 d-block"></i>
                 <h4 class="text-muted">No products found.</h4>
+                ${currentViewMode === 'grid' ? `<button class="btn btn-outline-primary mt-3 rounded-pill" onclick="goBackToGroupedView()"><i class="bi bi-arrow-left me-2"></i>Go Back</button>` : ''}
             </div>
         `;
         return;
     }
 
-    productsToRender.forEach(product => {
-        const outOfStock = product.stock <= 0;
-        const cardHtml = `
-            <div class="col-sm-6 col-lg-4">
-                <div class="product-card rounded-4 overflow-hidden position-relative">
-                    <div class="product-img-wrapper cursor-pointer" onclick="openProductModal('${product.id}')">
-                        <img src="${product.image}" alt="${product.name}" class="product-img">
-                        ${product.brand ? `<span class="badge bg-dark position-absolute top-0 start-0 m-3 shadow-sm">${product.brand}</span>` : ''}
-                        ${outOfStock ? '<span class="badge bg-danger position-absolute top-0 end-0 m-3 shadow-sm">Out of Stock</span>' : ''}
-                        <button class="btn btn-primary rounded-pill add-to-cart-btn shadow-sm d-none d-lg-block" onclick="event.stopPropagation(); addToCart('${product.id}', 1)" ${outOfStock ? 'disabled' : ''}>
-                            <i class="bi bi-cart-plus me-1"></i> Add to Cart
-                        </button>
+    if (currentViewMode === 'grid') {
+        const currentCat = categoryFilter.value !== 'all' ? categoryFilter.value : 'Search Results';
+        
+        // Add header with Back Button
+        if (categoryFilter.value !== 'all' || (navbarSearch.value || mobileSearch.value)) {
+            productsGrid.innerHTML = `
+                <div class="col-12 d-flex align-items-center mb-2">
+                    <button class="btn btn-light rounded-circle shadow-sm me-3 d-flex align-items-center justify-content-center btn-hover-lift" onclick="goBackToGroupedView()" style="width: 45px; height: 45px;">
+                        <i class="bi bi-arrow-left fs-5"></i>
+                    </button>
+                    <div>
+                        <h3 class="fw-bold mb-0">${currentCat}</h3>
+                        <span class="text-muted small">${productsToRender.length} Items</span>
                     </div>
-                    <div class="card-body p-4 cursor-pointer" onclick="openProductModal('${product.id}')">
-                        <div class="d-flex gap-2 mb-2">
-                            <span class="badge bg-light text-secondary border">${product.category}</span>
-                            ${product.scent ? `<span class="badge bg-info-subtle text-info border"><i class="bi bi-flower1 me-1"></i>${product.scent}</span>` : ''}
-                        </div>
-                        <h5 class="product-title text-dark">${product.name}</h5>
-                        <p class="product-desc">${product.description}</p>
-                        <div class="d-flex justify-content-between align-items-center mt-auto">
-                            <span class="product-price">₹${Number(product.price || 0).toFixed(2)}</span>
-                            <button class="btn btn-outline-primary btn-sm rounded-circle d-lg-none" onclick="event.stopPropagation(); addToCart('${product.id}', 1)" ${outOfStock ? 'disabled' : ''}>
-                                <i class="bi bi-cart-plus"></i>
+                </div>
+            `;
+        }
+
+        // Render products as a standard grid
+        productsToRender.forEach(product => {
+            const outOfStock = product.stock <= 0;
+            const cardHtml = `
+                <div class="col-6 col-sm-6 col-lg-4 col-xl-3">
+                    <div class="product-card rounded-4 overflow-hidden position-relative h-100 d-flex flex-column">
+                        <div class="product-img-wrapper cursor-pointer" onclick="openProductModal('${product.id}')">
+                            <img src="${product.image}" alt="${product.name}" class="product-img">
+                            ${product.brand ? `<span class="badge bg-dark position-absolute top-0 start-0 m-3 shadow-sm">${product.brand}</span>` : ''}
+                            ${outOfStock ? '<span class="badge bg-danger position-absolute top-0 end-0 m-3 shadow-sm">Out of Stock</span>' : ''}
+                            <button class="btn btn-primary rounded-pill add-to-cart-btn shadow-sm d-none d-lg-block" onclick="event.stopPropagation(); addToCart('${product.id}', 1)" ${outOfStock ? 'disabled' : ''}>
+                                <i class="bi bi-cart-plus me-1"></i> Add to Cart
                             </button>
+                        </div>
+                        <div class="card-body p-4 cursor-pointer" onclick="openProductModal('${product.id}')">
+                            <div class="d-flex flex-wrap gap-1 mb-2">
+                                <span class="badge bg-light text-secondary border">${product.category}</span>
+                                ${product.scent ? `<span class="badge bg-info-subtle text-info border"><i class="bi bi-flower1 me-1"></i>${product.scent}</span>` : ''}
+                            </div>
+                            <h5 class="product-title text-dark">${product.name}</h5>
+                            <p class="product-desc">${product.description}</p>
+                            <div class="d-flex justify-content-between align-items-center mt-auto">
+                                <span class="product-price">₹${Number(product.price || 0).toFixed(2)}</span>
+                                <button class="btn btn-outline-primary btn-sm rounded-circle d-lg-none" onclick="event.stopPropagation(); addToCart('${product.id}', 1)" ${outOfStock ? 'disabled' : ''}>
+                                    <i class="bi bi-cart-plus"></i>
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
-            </div>
-        `;
-        productsGrid.insertAdjacentHTML('beforeend', cardHtml);
-    });
+            `;
+            productsGrid.insertAdjacentHTML('beforeend', cardHtml);
+        });
+
+    } else {
+        // Group products by category
+        const productsByCategory = productsToRender.reduce((acc, product) => {
+            const cat = product.category || 'Other';
+            if (!acc[cat]) acc[cat] = [];
+            acc[cat].push(product);
+            return acc;
+        }, {});
+
+        // Render each category section
+        Object.keys(productsByCategory).forEach((category, index) => {
+            const categoryProducts = productsByCategory[category];
+            const productsToShow = categoryProducts.slice(0, 5);
+            const hasMore = categoryProducts.length > 5;
+            
+            let cardsHtml = '';
+            productsToShow.forEach(product => {
+                const outOfStock = product.stock <= 0;
+                cardsHtml += `
+                    <div class="category-card-wrapper">
+                        <div class="product-card rounded-4 overflow-hidden position-relative h-100 d-flex flex-column">
+                            <div class="product-img-wrapper cursor-pointer" onclick="openProductModal('${product.id}')">
+                                <img src="${product.image}" alt="${product.name}" class="product-img">
+                                ${product.brand ? `<span class="badge bg-dark position-absolute top-0 start-0 m-3 shadow-sm">${product.brand}</span>` : ''}
+                                ${outOfStock ? '<span class="badge bg-danger position-absolute top-0 end-0 m-3 shadow-sm">Out of Stock</span>' : ''}
+                                <button class="btn btn-primary rounded-pill add-to-cart-btn shadow-sm d-none d-lg-block" onclick="event.stopPropagation(); addToCart('${product.id}', 1)" ${outOfStock ? 'disabled' : ''}>
+                                    <i class="bi bi-cart-plus me-1"></i> Add to Cart
+                                </button>
+                            </div>
+                            <div class="card-body p-4 cursor-pointer" onclick="openProductModal('${product.id}')">
+                                <div class="d-flex flex-wrap gap-1 mb-2">
+                                    <span class="badge bg-light text-secondary border">${product.category}</span>
+                                    ${product.scent ? `<span class="badge bg-info-subtle text-info border"><i class="bi bi-flower1 me-1"></i>${product.scent}</span>` : ''}
+                                </div>
+                                <h5 class="product-title text-dark">${product.name}</h5>
+                                <p class="product-desc">${product.description}</p>
+                                <div class="d-flex justify-content-between align-items-center mt-auto">
+                                    <span class="product-price">₹${Number(product.price || 0).toFixed(2)}</span>
+                                    <button class="btn btn-outline-primary btn-sm rounded-circle d-lg-none" onclick="event.stopPropagation(); addToCart('${product.id}', 1)" ${outOfStock ? 'disabled' : ''}>
+                                        <i class="bi bi-cart-plus"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+
+            if (hasMore) {
+                cardsHtml += `
+                    <div class="category-card-wrapper d-flex align-items-center justify-content-center">
+                        <button class="btn btn-outline-primary rounded-circle shadow-sm d-flex flex-column align-items-center justify-content-center btn-hover-lift" 
+                                style="width: 120px; height: 120px;" 
+                                onclick="viewCategoryGrid('${category}')">
+                            <i class="bi bi-arrow-right fs-1 mb-2"></i>
+                            <span class="small fw-semibold">View All</span>
+                        </button>
+                    </div>
+                `;
+            }
+
+            const categoryHtml = `
+                <div class="category-section w-100 overflow-hidden mb-4">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h4 class="fw-bold text-dark mb-0 d-flex align-items-center gap-2">
+                            <i class="bi bi-tag-fill text-primary fs-5"></i> ${category}
+                        </h4>
+                        <span class="badge bg-light text-secondary border rounded-pill px-3 py-2">${categoryProducts.length} Items</span>
+                    </div>
+                    <div class="position-relative">
+                        <button class="scroll-btn scroll-btn-left d-none d-md-flex" onclick="scrollCategory('cat-scroll-${index}', -300)">
+                            <i class="bi bi-chevron-left"></i>
+                        </button>
+                        
+                        <div id="cat-scroll-${index}" class="d-flex overflow-auto gap-4 pb-4 px-1 hide-scrollbar" style="scroll-snap-type: x mandatory; scroll-behavior: smooth;">
+                            ${cardsHtml}
+                        </div>
+                        
+                        <button class="scroll-btn scroll-btn-right d-none d-md-flex" onclick="scrollCategory('cat-scroll-${index}', 300)">
+                            <i class="bi bi-chevron-right"></i>
+                        </button>
+                    </div>
+                </div>
+            `;
+            productsGrid.insertAdjacentHTML('beforeend', categoryHtml);
+        });
+    }
+}
+
+function viewCategoryGrid(category) {
+    categoryFilter.value = category;
+    currentViewMode = 'grid';
+    handleFilterSort();
+    document.getElementById('products').scrollIntoView({ behavior: 'smooth' });
+}
+
+function goBackToGroupedView() {
+    categoryFilter.value = 'all';
+    navbarSearch.value = '';
+    mobileSearch.value = '';
+    currentViewMode = 'grouped';
+    handleFilterSort();
+    document.getElementById('products').scrollIntoView({ behavior: 'smooth' });
+}
+
+function toggleCategoryView(category) {
+    expandedCategories[category] = !expandedCategories[category];
+    handleFilterSort(); // Re-render with current filters
+}
+
+function scrollCategory(elementId, amount) {
+    const container = document.getElementById(elementId);
+    if (container) {
+        container.scrollBy({ left: amount, behavior: 'smooth' });
+    }
 }
 
 // --- Event Listeners ---
@@ -234,6 +416,12 @@ function handleFilterSort() {
     const searchTerm = (navbarSearch.value || mobileSearch.value).toLowerCase();
     const category = categoryFilter.value;
     const sort = sortPrice.value;
+
+    if (category !== 'all' || searchTerm.trim().length > 0) {
+        currentViewMode = 'grid';
+    } else if (category === 'all' && searchTerm.trim().length === 0) {
+        currentViewMode = 'grouped';
+    }
 
     let filtered = products.filter(p => {
         const matchesSearch = p.name.toLowerCase().includes(searchTerm) || p.description.toLowerCase().includes(searchTerm);
@@ -593,11 +781,11 @@ function populateCheckoutSummary() {
         const upiId = 'sivasakthicamphorworks@iob';
         const name = 'SivaSakthi Camphor Works';
         const amount = grandTotal.toFixed(2);
-        
+
         if (!checkoutGrandTotal.dataset.orderId) {
             checkoutGrandTotal.dataset.orderId = 'ORD-' + Date.now();
         }
-        const orderId = checkoutGrandTotal.dataset.orderId;
+        const orderId = checkoutGrandTotal.dataset.F;
 
         const upiUrl = `upi://pay?pa=${upiId}&pn=${encodeURIComponent(name)}&am=${amount}&cu=INR&tn=${orderId}`;
 

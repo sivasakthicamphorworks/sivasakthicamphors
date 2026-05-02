@@ -13,18 +13,29 @@ export async function onRequest(context) {
   const url = `${SCRIPT_URL}?action=products`;
 
   try {
-    const response = await fetch(url);
+    // Use Cloudflare Edge Caching for the Apps Script subrequest (Cache for 10 minutes)
+    const response = await fetch(url, {
+      cf: {
+        cacheTtl: 600,
+        cacheEverything: true
+      }
+    });
+
     if (!response.ok) {
       return new Response(JSON.stringify({ error: 'Google Apps Script error' }), {
         status: response.status,
         headers: { 'Content-Type': 'application/json' },
       });
     }
+
     const data = await response.json();
+    
     return new Response(JSON.stringify(data), {
       headers: {
         'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*'
+        'Access-Control-Allow-Origin': '*',
+        // Tell the user's browser to cache this for 5 minutes
+        'Cache-Control': 'public, max-age=300'
       },
     });
   } catch (error) {
