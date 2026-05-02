@@ -273,8 +273,95 @@
                                         <select class="form-select rounded-3 bg-light" id="cPayment" required>
                                             <option value="">-- Select Payment Method --</option>
                                             <option value="Cash on Delivery">Cash on Delivery (COD)</option>
-                                            <option value="Online Payment">Online Payment (Card/UPI)</option>
+                                            <option value="Online Payment">Online Payment (UPI)</option>
                                         </select>
+                                    </div>
+                                    <div class="col-12" id="onlinePaymentDetails" style="display: none;">
+                                        <div
+                                            class="card border-primary-subtle bg-white rounded-4 overflow-hidden mt-1 shadow-sm">
+                                            <div
+                                                class="card-header bg-primary-subtle border-0 py-2 d-flex justify-content-between align-items-center">
+                                                <span class="small fw-bold text-primary"><i
+                                                        class="bi bi-qr-code-scan me-1"></i> UPI Payment</span>
+                                                <span
+                                                    class="badge bg-white text-primary border border-primary-subtle rounded-pill">Secure</span>
+                                            </div>
+                                            <div class="card-body p-3">
+                                                <div class="btn-group w-100 mb-3" role="group">
+                                                    <input type="radio" class="btn-check" name="upiMode" id="upiQRMode"
+                                                        checked>
+                                                    <label
+                                                        class="btn btn-outline-primary btn-sm rounded-start-pill py-2"
+                                                        for="upiQRMode">Scan QR</label>
+
+                                                    <input type="radio" class="btn-check" name="upiMode"
+                                                        id="upiAppMode">
+                                                    <label class="btn btn-outline-primary btn-sm rounded-end-pill py-2"
+                                                        for="upiAppMode">Pay via App</label>
+                                                </div>
+
+                                                <div id="qrContainer" class="text-center py-2 animate-fade-in">
+                                                    <div class="bg-white p-2 d-inline-block rounded-3 border mb-2">
+                                                        <img id="paymentQR"
+                                                            src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=upi://pay"
+                                                            alt="Payment QR" class="img-fluid"
+                                                            style="width: 150px; height: 150px;">
+                                                    </div>
+                                                    <p class="small text-muted mb-1">Scan with any UPI App</p>
+                                                    <div class="d-flex justify-content-center align-items-center gap-3">
+                                                        <img src="https://img.icons8.com/color/480/google-pay.png"
+                                                            alt="GPay" style="height: 15px; width: auto; opacity: 0.7;">
+                                                        <img src="https://img.icons8.com/color/480/phone-pe.png"
+                                                            alt="PhonePe"
+                                                            style="height: 15px; width: auto; opacity: 0.7;">
+                                                        <img src="https://img.icons8.com/color/480/paytm.png"
+                                                            alt="Paytm"
+                                                            style="height: 15px; width: auto; opacity: 0.7;">
+                                                        <img src="https://img.icons8.com/color/480/bhim.png" alt="BHIM"
+                                                            style="height: 12px; width: auto; opacity: 0.7;">
+                                                    </div>
+                                                </div>
+
+                                                <div id="upiAppLinkContainer"
+                                                    class="text-center py-2 d-none animate-fade-in">
+                                                    <a id="upiAppLink" href="#"
+                                                        class="btn btn-primary rounded-pill w-100 py-2 mb-2 shadow-sm">
+                                                        <i class="bi bi-phone me-2"></i>Pay via UPI App
+                                                    </a>
+                                                    <div
+                                                        class="d-flex justify-content-center align-items-center gap-3 mt-2">
+                                                        <!-- You can replace these with your preferred SVG or image paths -->
+                                                        <img src="https://img.icons8.com/color/144/google-pay.png"
+                                                            alt="GPay" style="height: 18px; width: auto; opacity: 0.8;">
+                                                        <img src="https://img.icons8.com/color/480/phone-pe.png"
+                                                            alt="PhonePe"
+                                                            style="height: 18px; width: auto; opacity: 0.8;">
+                                                        <img src="https://img.icons8.com/color/480/paytm.png"
+                                                            alt="Paytm"
+                                                            style="height: 18px; width: auto; opacity: 0.8;">
+                                                        <img src="https://img.icons8.com/color/480/bhim.png" alt="BHIM"
+                                                            style="height: 15px; width: auto; opacity: 0.8;">
+                                                    </div>
+                                                </div>
+
+                                                <div class="mt-3 pt-3 border-top">
+                                                    <label for="cUTR"
+                                                        class="form-label text-muted small fw-semibold">UTR /
+                                                        Transaction ID</label>
+                                                    <input type="text"
+                                                        class="form-control rounded-3 bg-light border-primary-subtle"
+                                                        id="cUTR" placeholder="12-digit UTR Number" maxlength="12"
+                                                        inputmode="numeric"
+                                                        oninput="this.value=this.value.replace(/[^0-9]/g,'')">
+                                                    <div class="d-flex justify-content-between mt-1">
+                                                        <small class="text-muted" style="font-size: 0.65rem;">Enter the
+                                                            ID after payment</small>
+                                                        <small class="text-primary fw-bold"
+                                                            style="font-size: 0.65rem;">REQUIRED *</small>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             </form>

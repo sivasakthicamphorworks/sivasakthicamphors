@@ -209,6 +209,24 @@ function setupEventListeners() {
             fetchPostOffices().then(populateCheckoutSummary);
         }
     });
+
+    // UPI Mode Switcher
+    document.getElementById('upiQRMode').addEventListener('change', toggleUPIMode);
+    document.getElementById('upiAppMode').addEventListener('change', toggleUPIMode);
+}
+
+function toggleUPIMode() {
+    const isQR = document.getElementById('upiQRMode').checked;
+    const qrContainer = document.getElementById('qrContainer');
+    const appContainer = document.getElementById('upiAppLinkContainer');
+
+    if (isQR) {
+        qrContainer.classList.remove('d-none');
+        appContainer.classList.add('d-none');
+    } else {
+        qrContainer.classList.add('d-none');
+        appContainer.classList.remove('d-none');
+    }
 }
 
 // --- Filter and Sort Logic ---
@@ -513,10 +531,21 @@ function populateCheckoutSummary() {
 
     // Logic to show/hide payment method
     const isLocationReady = pincode && pincode.trim().length === 6 && state;
+    const onlinePaymentDetails = document.getElementById('onlinePaymentDetails');
+
     if (isLocationReady) {
         paymentWrapper.style.display = 'block';
+        if (paymentMethod === 'Online Payment') {
+            onlinePaymentDetails.style.display = 'block';
+            document.getElementById('cUTR').required = true;
+        } else {
+            onlinePaymentDetails.style.display = 'none';
+            document.getElementById('cUTR').required = false;
+        }
     } else {
         paymentWrapper.style.display = 'none';
+        onlinePaymentDetails.style.display = 'none';
+        document.getElementById('cUTR').required = false;
         // Reset payment method selection if location is not ready
         document.getElementById('cPayment').value = '';
     }
@@ -558,6 +587,23 @@ function populateCheckoutSummary() {
     checkoutOrderSummary.innerHTML += summaryHtml;
 
     checkoutGrandTotal.textContent = '₹' + grandTotal.toFixed(2);
+
+    // Update UPI QR and Link if Online Payment
+    if (paymentMethod === 'Online Payment') {
+        const upiId = 'sivasakthicamphorworks@iob';
+        const name = 'SivaSakthi Camphor Works';
+        const amount = grandTotal.toFixed(2);
+        
+        if (!checkoutGrandTotal.dataset.orderId) {
+            checkoutGrandTotal.dataset.orderId = 'ORD-' + Date.now();
+        }
+        const orderId = checkoutGrandTotal.dataset.orderId;
+
+        const upiUrl = `upi://pay?pa=${upiId}&pn=${encodeURIComponent(name)}&am=${amount}&cu=INR&tn=${orderId}`;
+
+        document.getElementById('upiAppLink').href = upiUrl;
+        document.getElementById('paymentQR').src = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(upiUrl)}`;
+    }
 
     // Store calculated values for handleCheckout
     checkoutGrandTotal.dataset.subtotal = subtotal;
@@ -629,11 +675,21 @@ async function handleCheckout(e) {
 
     // Change button state
     const originalBtnHtml = placeOrderBtn.innerHTML;
+
+    // Additional validation for Online Payment
+    if (document.getElementById('cPayment').value === 'Online Payment') {
+        const utr = document.getElementById('cUTR').value.trim();
+        if (utr.length < 12) {
+            showToast('Payment Required', 'Please enter a valid 12-digit UTR number after payment.', 'warning');
+            return;
+        }
+    }
+
     placeOrderBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Processing...';
     placeOrderBtn.disabled = true;
 
     const orderData = {
-        order_id: 'ORD-' + Date.now(),
+        order_id: checkoutGrandTotal.dataset.orderId || ('ORD-' + Date.now()),
         date: new Date().toLocaleString('en-IN'),
         customer_name: document.getElementById('cName').value,
         mobile: document.getElementById('cMobile').value,
@@ -649,6 +705,7 @@ async function handleCheckout(e) {
         cod_charge: checkoutGrandTotal.dataset.cod,
         total_weight: checkoutGrandTotal.dataset.weight,
         total_amount: checkoutGrandTotal.textContent.replace('₹', ''),
+        utr_number: document.getElementById('cUTR').value || 'N/A',
         status: 'Pending'
     };
 
@@ -680,6 +737,7 @@ async function handleCheckout(e) {
 
         // Success
         cart = [];
+        delete checkoutGrandTotal.dataset.orderId;
         saveCart();
         updateCartUI();
         checkoutModal.hide();
