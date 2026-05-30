@@ -1054,7 +1054,18 @@ async function handleOrderSearch() {
     if (orderData) {
         // Populate modal data fields
         document.getElementById('detOrderId').textContent = orderData.order_id;
-        document.getElementById('detDate').textContent = orderData.date || 'N/A';
+        let formattedDate = 'N/A';
+        if (orderData.date) {
+            const d = new Date(orderData.date);
+            if (!isNaN(d)) {
+                // Example format: 12 Sep 2026, 14:35
+                formattedDate = d.toLocaleString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true });
+            } else {
+                // Fallback – use raw value
+                formattedDate = orderData.date;
+            }
+        }
+        document.getElementById('detDate').textContent = formattedDate;
         document.getElementById('detPayment').textContent = orderData.payment_method || 'N/A';
         document.getElementById('detCustomerName').textContent = orderData.customer_name || 'N/A';
         document.getElementById('detMobile').textContent = orderData.mobile || 'N/A';
