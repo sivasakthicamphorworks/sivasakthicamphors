@@ -61,6 +61,8 @@
                     <li class="nav-item"><a class="nav-link active px-3" href="#">Home</a></li>
                     <li class="nav-item"><a class="nav-link px-3" href="#products">Products</a></li>
                     <li class="nav-item"><a class="nav-link px-3" href="#contact">Contact</a></li>
+                    <li class="nav-item"><a class="nav-link px-3" href="#" data-bs-toggle="modal"
+                            data-bs-target="#trackOrderModal"><i class="bi bi-receipt me-1"></i>Order Details</a></li>
                 </ul>
                 <div class="d-flex align-items-center gap-3">
                     <div class="search-bar position-relative d-none d-lg-block">
@@ -345,9 +347,17 @@
                                                 </div>
 
                                                 <div class="mt-3 pt-3 border-top">
-                                                    <label for="cUTR"
-                                                        class="form-label text-muted small fw-semibold">UTR /
-                                                        Transaction ID</label>
+                                                    <div class="d-flex justify-content-between align-items-center mb-1">
+                                                        <label for="cUTR"
+                                                            class="form-label text-muted small fw-semibold mb-0">UTR /
+                                                            Transaction ID</label>
+                                                        <a href="#utrInfoCollapse" data-bs-toggle="collapse"
+                                                            class="text-decoration-none text-primary small d-flex align-items-center gap-1"
+                                                            style="font-size: 0.75rem;" aria-expanded="false"
+                                                            aria-controls="utrInfoCollapse">
+                                                            <i class="bi bi-info-circle-fill"></i> Where to find UTR?
+                                                        </a>
+                                                    </div>
                                                     <input type="text"
                                                         class="form-control rounded-3 bg-light border-primary-subtle"
                                                         id="cUTR" placeholder="12-digit UTR Number" maxlength="12"
@@ -358,6 +368,41 @@
                                                             ID after payment</small>
                                                         <small class="text-primary fw-bold"
                                                             style="font-size: 0.65rem;">REQUIRED *</small>
+                                                    </div>
+
+                                                    <div class="collapse mt-2 shadow-sm" id="utrInfoCollapse">
+                                                        <div class="card card-body bg-light border-0 p-3 rounded-3 text-start"
+                                                            style="font-size: 0.72rem; line-height: 1.45;">
+                                                            <strong class="d-block mb-1 text-dark"><i
+                                                                    class="bi bi-info-circle-fill text-primary me-1"></i>
+                                                                What is a UTR
+                                                                Number?</strong>
+                                                            <p class="text-muted mb-2">A UTR (Unique Transaction
+                                                                Reference) is a 12-digit number generated for every UPI
+                                                                payment to uniquely verify your transaction.</p>
+                                                            <strong class="d-block mb-1 text-dark"><i
+                                                                    class="bi bi-search text-primary me-1"></i> Where to
+                                                                find it on UPI
+                                                                apps:</strong>
+                                                            <ul class="ps-3 mb-0 text-muted"
+                                                                style="list-style-type: square;">
+                                                                <li class="mb-1"><strong>Google Pay:</strong> Tap the
+                                                                    payment in <b>Transaction history</b>. Look for
+                                                                    <b>UPI transaction ID</b> (starts with 3, 4, or 5).
+                                                                </li>
+                                                                <li class="mb-1"><strong>PhonePe:</strong> Tap the
+                                                                    payment in your <b>History</b>. Look for the
+                                                                    12-digit <b>UTR</b> number.</li>
+                                                                <li class="mb-1"><strong>Paytm:</strong> Open the
+                                                                    transaction details in <b>Balance & History</b>.
+                                                                    Look for <b>UPI Ref No</b>.</li>
+                                                                <li><strong>Other Apps (BHIM, Mobikwik, etc):</strong>
+                                                                    View details in transaction history and look for
+                                                                    <b>UPI Ref No</b> or <b>Reference ID</b> or
+                                                                    <b>Transaction ID</b>.
+                                                                </li>
+                                                            </ul>
+                                                        </div>
                                                     </div>
                                                 </div>
                                             </div>
@@ -489,6 +534,131 @@
         </div>
     </div>
 
+    <!-- Track Order & Details Modal -->
+    <div class="modal fade" id="trackOrderModal" tabindex="-1" aria-labelledby="trackOrderModalLabel"
+        aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-md">
+            <div class="modal-content rounded-4 border-0 shadow-lg">
+                <div class="modal-header border-bottom bg-light rounded-top-4">
+                    <h5 class="modal-title fw-bold text-primary" id="trackOrderModalLabel">
+                        <i class="bi bi-receipt me-2"></i>Order Details & Tracking
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="mb-4">
+                        <label for="trackOrderId" class="form-label text-muted small fw-semibold">Enter Order ID</label>
+                        <div class="input-group shadow-sm rounded-3 overflow-hidden">
+                            <input type="text" class="form-control rounded-start-3 bg-light border-0 py-2 ps-3"
+                                id="trackOrderId" placeholder="e.g. ORD-1717072522856" required>
+                            <button class="btn btn-primary rounded-end-3 px-4" type="button" id="btnSearchOrder">
+                                <i class="bi bi-search me-1"></i>Search
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Loading Spinner -->
+                    <div id="trackSpinner" class="text-center py-4 d-none">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <p class="mt-2 text-muted small mb-0">Fetching order details...</p>
+                    </div>
+
+                    <!-- Error Alert -->
+                    <div id="trackErrorAlert" class="alert alert-danger rounded-3 d-none mb-0 small" role="alert">
+                        <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                        <span id="trackErrorMessage">No order found with this ID. Please double check.</span>
+                    </div>
+
+                    <!-- Order Details Result Area -->
+                    <div id="trackDetailsResult" class="d-none animate-fade-in">
+                        <div class="card border-0 bg-light rounded-4 p-3 mb-0 border">
+                            <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom">
+                                <div>
+                                    <span class="text-muted d-block small" style="font-size: 0.65rem;">Order ID</span>
+                                    <strong class="text-primary" id="detOrderId">ORD-123</strong>
+                                </div>
+                                <span class="badge rounded-pill px-3 py-2 fw-semibold"
+                                    id="detStatusBadge">Pending</span>
+                            </div>
+
+                            <div class="row g-2 small mb-3">
+                                <div class="col-6">
+                                    <span class="text-muted d-block" style="font-size: 0.65rem;">Order Date</span>
+                                    <span class="fw-semibold text-dark" id="detDate">N/A</span>
+                                </div>
+                                <div class="col-6">
+                                    <span class="text-muted d-block" style="font-size: 0.65rem;">Payment Mode</span>
+                                    <span class="fw-semibold text-dark" id="detPayment">N/A</span>
+                                </div>
+                            </div>
+
+                            <div class="mb-3 small">
+                                <span class="text-muted d-block mb-1 font-semibold" style="font-size: 0.65rem;">Customer
+                                    Details</span>
+                                <div class="bg-white p-2 rounded-3 border">
+                                    <div class="fw-bold text-dark" id="detCustomerName">Name</div>
+                                    <div class="text-muted" id="detMobile">Mobile</div>
+                                </div>
+                            </div>
+
+                            <div class="mb-3 small">
+                                <span class="text-muted d-block mb-1 font-semibold" style="font-size: 0.65rem;">Shipping
+                                    Address</span>
+                                <div class="bg-white p-2 rounded-3 border">
+                                    <div id="detAddress">Address</div>
+                                    <div class="fw-medium text-dark"><span id="detPostOffice">Post Office</span>, <span
+                                            id="detCity">City</span></div>
+                                    <div class="text-muted"><span id="detState">State</span> - <span
+                                            id="detPincode">Pincode</span></div>
+                                </div>
+                            </div>
+
+                            <div class="mb-3 small">
+                                <span class="text-muted d-block mb-1 font-semibold" style="font-size: 0.65rem;">Items
+                                    Ordered</span>
+                                <div class="bg-white p-2 rounded-3 border text-dark" id="detItems">
+                                    Items
+                                </div>
+                            </div>
+
+                            <!-- Tracking Code Area (Only shown if shipped/delivered or track info available) -->
+                            <div class="mb-3 small d-none" id="detTrackingArea">
+                                <span class="text-muted d-block mb-1 font-semibold" style="font-size: 0.65rem;">Shipment
+                                    Tracking</span>
+                                <div
+                                    class="alert alert-info border-info-subtle rounded-3 mb-0 p-2 d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <span class="d-block small text-dark-emphasis">Courier: <b
+                                                id="detCourier">N/A</b></span>
+                                        <span class="d-block small text-dark-emphasis">Tracking ID: <b
+                                                id="detTrackingId">N/A</b></span>
+                                    </div>
+                                    <a href="#" target="_blank"
+                                        class="btn btn-sm btn-primary rounded-pill px-3 fw-semibold"
+                                        id="btnTrackShipmentLink" style="font-size: 0.7rem;">
+                                        <i class="bi bi-box-arrow-up-right me-1"></i>Track Now
+                                    </a>
+                                </div>
+                            </div>
+
+                            <div
+                                class="d-flex justify-content-between align-items-center fw-bold fs-5 text-primary pt-2 border-top">
+                                <span>Total Amount:</span>
+                                <span id="detTotal">₹0.00</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer border-top bg-light rounded-bottom-4">
+                    <button type="button" class="btn btn-outline-secondary rounded-pill px-4"
+                        data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Toast Notification Container -->
     <div class="toast-container position-fixed bottom-0 end-0 p-3 z-3">
         <!-- Toasts injected by JS -->
@@ -512,10 +682,9 @@
                     <ul class="list-unstyled d-flex flex-column gap-2 text-white-50">
                         <li><a href="#" class="text-decoration-none text-reset text-white-hover transition-all">Home</a>
                         </li>
-                        <li><a href="#products"
-                                class="text-decoration-none text-reset text-white-hover transition-all">Track
-                                Shipment</a>
-                        </li>
+                        <li><a href="#" data-bs-toggle="modal" data-bs-target="#trackOrderModal"
+                                class="text-decoration-none text-reset text-white-hover transition-all">Order
+                                Details</a></li>
                     </ul>
                 </div>
                 <div class="col-lg-4 col-md-6">

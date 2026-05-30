@@ -137,7 +137,7 @@ let currentViewMode = 'grouped'; // 'grouped' or 'grid'
 // --- Render Products ---
 function renderProducts(productsToRender) {
     productsGrid.innerHTML = '';
-    
+
     // Update container classes based on mode
     if (currentViewMode === 'grid') {
         productsGrid.className = 'row g-4';
@@ -158,7 +158,7 @@ function renderProducts(productsToRender) {
 
     if (currentViewMode === 'grid') {
         const currentCat = categoryFilter.value !== 'all' ? categoryFilter.value : 'Search Results';
-        
+
         // Add header with Back Button
         if (categoryFilter.value !== 'all' || (navbarSearch.value || mobileSearch.value)) {
             productsGrid.innerHTML = `
@@ -222,7 +222,7 @@ function renderProducts(productsToRender) {
             const categoryProducts = productsByCategory[category];
             const productsToShow = categoryProducts.slice(0, 5);
             const hasMore = categoryProducts.length > 5;
-            
+
             let cardsHtml = '';
             productsToShow.forEach(product => {
                 const outOfStock = product.stock <= 0;
@@ -395,6 +395,21 @@ function setupEventListeners() {
     // UPI Mode Switcher
     document.getElementById('upiQRMode').addEventListener('change', toggleUPIMode);
     document.getElementById('upiAppMode').addEventListener('change', toggleUPIMode);
+
+    // Track Order Search Events
+    const btnSearchOrder = document.getElementById('btnSearchOrder');
+    if (btnSearchOrder) {
+        btnSearchOrder.addEventListener('click', handleOrderSearch);
+    }
+    const trackOrderIdInput = document.getElementById('trackOrderId');
+    if (trackOrderIdInput) {
+        trackOrderIdInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                handleOrderSearch();
+            }
+        });
+    }
 }
 
 function toggleUPIMode() {
@@ -785,7 +800,7 @@ function populateCheckoutSummary() {
         if (!checkoutGrandTotal.dataset.orderId) {
             checkoutGrandTotal.dataset.orderId = 'ORD-' + Date.now();
         }
-        const orderId = checkoutGrandTotal.dataset.F;
+        const orderId = checkoutGrandTotal.dataset.orderId;
 
         const upiUrl = `upi://pay?pa=${upiId}&pn=${encodeURIComponent(name)}&am=${amount}&cu=INR&tn=${orderId}`;
 
@@ -934,6 +949,15 @@ async function handleCheckout(e) {
         document.getElementById('successOrderId').textContent = orderData.order_id;
         successModal.show();
 
+        // Save to local storage for instant offline/caching tracking
+        try {
+            const recentOrders = JSON.parse(localStorage.getItem('sscw_recent_orders')) || [];
+            recentOrders.unshift(orderData);
+            localStorage.setItem('sscw_recent_orders', JSON.stringify(recentOrders.slice(0, 10)));
+        } catch (e) {
+            console.error('Failed to cache order locally:', e);
+        }
+
     } catch (error) {
         console.error("Checkout Error:", error);
         showToast('Error', 'Failed to place order. Please try again.', 'danger');
@@ -977,4 +1001,162 @@ function showToast(title, message, type = 'primary') {
     toastElement.addEventListener('hidden.bs.toast', () => {
         toastElement.remove();
     });
+}
+
+// --- Order Details & Shipment Tracking ---
+async function handleOrderSearch() {
+    const orderIdInput = document.getElementById('trackOrderId');
+    const orderId = orderIdInput.value.trim();
+
+    if (!orderId) {
+        showToast('Validation Error', 'Please enter a valid 12-digit UTR or Order ID.', 'warning');
+        return;
+    }
+
+    const spinner = document.getElementById('trackSpinner');
+    const errorAlert = document.getElementById('trackErrorAlert');
+    const detailsResult = document.getElementById('trackDetailsResult');
+
+    // Reset view
+    detailsResult.classList.add('d-none');
+    errorAlert.classList.add('d-none');
+    spinner.classList.remove('d-none');
+
+    let orderData = null;
+
+    // 1. Check local storage cache first as instant match/fallback
+    try {
+        const recentOrders = JSON.parse(localStorage.getItem('sscw_recent_orders')) || [];
+        const localMatch = recentOrders.find(o => o.order_id === orderId);
+        if (localMatch) {
+            orderData = localMatch;
+        }
+    } catch (err) {
+        console.warn('Error reading cached orders:', err);
+    }
+
+    // 2. Fetch live data from backend (Google Sheet via Cloudflare Function)
+    try {
+        const response = await fetch(`/api/orders?order_id=${encodeURIComponent(orderId)}`);
+        if (response.ok) {
+            const result = await response.json();
+            // Ensure result doesn't contain an error like "Invalid action" or "Not found"
+            if (result && !result.error && result.order_id) {
+                orderData = result;
+            }
+        }
+    } catch (err) {
+        console.warn('Remote tracking lookup failed, falling back to cached details:', err);
+    }
+
+    spinner.classList.add('d-none');
+
+    if (orderData) {
+        // Populate modal data fields
+        document.getElementById('detOrderId').textContent = orderData.order_id;
+        document.getElementById('detDate').textContent = orderData.date || 'N/A';
+        document.getElementById('detPayment').textContent = orderData.payment_method || 'N/A';
+        document.getElementById('detCustomerName').textContent = orderData.customer_name || 'N/A';
+        document.getElementById('detMobile').textContent = orderData.mobile || 'N/A';
+        document.getElementById('detAddress').textContent = orderData.address || 'N/A';
+        document.getElementById('detPostOffice').textContent = orderData.post_office || 'N/A';
+        document.getElementById('detCity').textContent = orderData.city || 'N/A';
+        document.getElementById('detState').textContent = orderData.state || 'N/A';
+        document.getElementById('detPincode').textContent = orderData.pincode || 'N/A';
+        renderTrackedItems(orderData.items);
+
+        // Amount Formatting
+        const total = parseFloat(orderData.total_amount || 0);
+        document.getElementById('detTotal').textContent = '₹' + total.toFixed(2);
+
+        // Status Badge Style Mapping
+        const status = (orderData.status || 'Pending').trim();
+        const statusBadge = document.getElementById('detStatusBadge');
+        statusBadge.textContent = status;
+        statusBadge.className = 'badge rounded-pill px-3 py-2 fw-semibold';
+
+        if (status.toLowerCase() === 'pending') {
+            statusBadge.classList.add('bg-warning', 'text-dark');
+        } else if (status.toLowerCase() === 'shipped') {
+            statusBadge.classList.add('bg-info', 'text-white');
+        } else if (status.toLowerCase() === 'delivered') {
+            statusBadge.classList.add('bg-success', 'text-white');
+        } else if (status.toLowerCase() === 'cancelled') {
+            statusBadge.classList.add('bg-danger', 'text-white');
+        } else {
+            statusBadge.classList.add('bg-secondary', 'text-white');
+        }
+
+        // Tracking & Courier details
+        const trackingArea = document.getElementById('detTrackingArea');
+        const courier = orderData.courier || orderData.courier_name;
+        const trackingId = orderData.tracking_id || orderData.tracking_number;
+
+        if (trackingId) {
+            trackingArea.classList.remove('d-none');
+            document.getElementById('detCourier').textContent = courier || 'India Post';
+            document.getElementById('detTrackingId').textContent = trackingId;
+
+            // Build direct tracking link if applicable
+            let trackLink = orderData.tracking_link || 'https://www.indiapost.gov.in/';
+            if (courier && courier.toLowerCase().includes('delhivery')) {
+                trackLink = `https://www.delhivery.com/track/share/detail?id=${trackingId}`;
+            }
+            document.getElementById('btnTrackShipmentLink').href = trackLink;
+        } else {
+            trackingArea.classList.add('d-none');
+        }
+
+        // Show details card
+        detailsResult.classList.remove('d-none');
+    } else {
+        // Show error message
+        document.getElementById('trackErrorMessage').textContent = 'No order found with this ID. If you just placed it, please wait a minute or check your Order ID.';
+        errorAlert.classList.remove('d-none');
+    }
+}
+
+function renderTrackedItems(itemsString) {
+    const container = document.getElementById('detItems');
+    container.innerHTML = '';
+
+    if (!itemsString) {
+        container.textContent = 'N/A';
+        return;
+    }
+
+    const itemParts = itemsString.split(' | ');
+    let html = '';
+
+    itemParts.forEach((part, index) => {
+        // Match product name and quantity (e.g. "Scented Camphor x3")
+        const match = part.match(/(.+)\s+x(\d+)$/);
+        let name = part;
+        let qty = 1;
+
+        if (match) {
+            name = match[1].trim();
+            qty = parseInt(match[2]);
+        }
+
+        // Search in loaded products list (fall back to dummyProducts if empty)
+        const allProds = (products && products.length > 0) ? products : dummyProducts;
+        const product = allProds.find(p => p.name.toLowerCase().trim() === name.toLowerCase().trim());
+
+        // Fallback default placeholder if product is not found or has no photo
+        const imageUrl = product ? product.image : 'https://images.unsplash.com/photo-1531403009284-440f080d1e12?w=100&q=80';
+
+        // Add a clean, responsive listing card for the product
+        html += `
+            <div class="d-flex align-items-center gap-3 py-2 ${index === itemParts.length - 1 ? '' : 'border-bottom'}" style="min-height: 55px;">
+                <img src="${imageUrl}" class="rounded border shadow-sm flex-shrink-0" style="width: 45px; height: 45px; object-fit: cover;" alt="${name}">
+                <div class="flex-grow-1 min-w-0">
+                    <span class="d-block fw-bold text-dark text-truncate" style="font-size: 0.75rem; line-height: 1.2;" title="${name}">${name}</span>
+                    <span class="text-muted d-block mt-0.5" style="font-size: 0.68rem;">Qty: <b class="text-primary">${qty}</b></span>
+                </div>
+            </div>
+        `;
+    });
+
+    container.innerHTML = html || 'N/A';
 }
