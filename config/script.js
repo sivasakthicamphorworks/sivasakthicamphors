@@ -558,6 +558,7 @@ function addToCart(productId, quantity = 1) {
 
     saveCart();
     updateCartUI();
+    populateCheckoutSummary();
     showToast('Success', `${product.name} added to cart!`, 'success');
 }
 
@@ -565,6 +566,7 @@ function removeFromCart(productId) {
     cart = cart.filter(item => item.id != productId);
     saveCart();
     updateCartUI();
+    populateCheckoutSummary();
 }
 
 function updateQuantity(productId, newQty) {
@@ -586,6 +588,7 @@ function updateQuantity(productId, newQty) {
     item.quantity = newQty;
     saveCart();
     updateCartUI();
+    populateCheckoutSummary();
 }
 
 function saveCart() {
@@ -755,7 +758,7 @@ function populateCheckoutSummary() {
 
     const shippingCharge = calculateShipping(totalWeight, state, pincode);
     const isCOD = paymentMethod === 'Cash on Delivery';
-    const codCharge = isCOD ? (subtotal + shippingCharge) * 0.016 : 0;
+    const codCharge = isCOD ? Math.max((subtotal + shippingCharge) * 0.016, 15) : 0;
     const grandTotal = subtotal + shippingCharge + codCharge;
 
     // Add calculations to summary
